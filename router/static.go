@@ -1,4 +1,4 @@
-package module1
+package router
 
 import (
 	"fmt"
@@ -7,14 +7,13 @@ import (
 	"os"
 	"strings"
 
-	"example.com/assets"
-	"example.com/router"
+	"assets"
 )
 
 func init() {
-	router.R.RegisterRoute(http.MethodGet, "/file", func(w http.ResponseWriter, req *http.Request) {
+	R.RegisterRoute(http.MethodGet, "/file", func(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Hi from module1")
-		if router.R.Debug {
+		if R.Debug {
 			http.ServeFile(w, req, "assets/static/file.txt")
 		} else {
 			fsys, err := fs.Sub(assets.Static, "static")
@@ -37,9 +36,9 @@ func init() {
 }
 
 func init() {
-	router.R.RegisterRoute(http.MethodGet, "/list", func(w http.ResponseWriter, req *http.Request) {
+	R.RegisterRoute(http.MethodGet, "/list", func(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Hi from module1")
-		if router.R.Debug {
+		if R.Debug {
 			files, err := os.ReadDir("assets/static")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -70,11 +69,11 @@ func init() {
 		}
 	})
 
-	router.R.RegisterRoute(http.MethodGet, "/static/", func(w http.ResponseWriter, req *http.Request) {
+	R.RegisterRoute(http.MethodGet, "/static/", func(w http.ResponseWriter, req *http.Request) {
 		file := strings.TrimPrefix(req.URL.Path, "/static/")
 		fmt.Println("Serving static file:", file)
 		fmt.Println("static folder:", assets.StaticFilesDir)
-		if router.R.Debug {
+		if R.Debug {
 			http.ServeFile(w, req, assets.StaticFilesDir+"/"+file) //"assets/static/"
 		} else {
 			fsys, err := fs.Sub(assets.Static, "static")

@@ -1,9 +1,9 @@
-package module2
+package module1
 
 import (
 	"net/http"
 
-	"example.com/router"
+	"router"
 )
 
 func init() {

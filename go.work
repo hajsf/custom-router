@@ -1,0 +1,9 @@
+go 1.20
+
+use (
+    ./config
+    ./app
+    ./assets
+    ./router
+    ./module1
+)

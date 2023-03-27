@@ -8,10 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"example.com/assets"
-	_ "example.com/module1"
-	_ "example.com/module2"
-	"example.com/router"
+	"assets"
+	_ "module1"
+	"router"
 )
 
 func init() {

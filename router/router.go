@@ -1,6 +1,7 @@
 package router
 
 import (
+	"config"
 	"context"
 	"fmt"
 	"html/template"
@@ -9,13 +10,13 @@ import (
 	"net/http"
 	"regexp"
 
-	"example.com/assets"
+	"assets"
 )
 
 var R *Router
 
 func init() {
-	R = New(false) // Set to true to serve files from local directory
+	R = New(config.Debug)
 }
 
 type route struct {
