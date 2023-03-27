@@ -29,8 +29,10 @@ type route struct {
 }
 
 type Router struct {
-	Debug  bool
-	routes map[string][]route
+	Debug            bool
+	routes           map[string][]route
+	NotFoundHandler  http.HandlerFunc
+	ForbiddenHandler http.HandlerFunc
 }
 
 type key int
@@ -40,25 +42,50 @@ const paramsKey key = 0
 func (r *Router) Init(debug bool) {
 	r.Debug = debug
 	r.routes = make(map[string][]route)
+	r.NotFoundHandler = func(w http.ResponseWriter, req *http.Request) {
+		r.ServeTemplate(w, nil, "layout.html", "404.html")
+	}
+	r.ForbiddenHandler = func(w http.ResponseWriter, req *http.Request) {
+		r.ServeTemplate(w, nil, "layout.html", "403.html")
+	}
 }
 
 func (r *Router) RegisterRoute(method, pattern string, handler http.HandlerFunc) {
-	r.routes[method] = append(r.routes[method], route{regexp.MustCompile(pattern), handler})
+	log.Printf("Adding route: %s %s", method, pattern)
+	compiledPath := compilePath(pattern)
+	fmt.Println("pattern compiled:", compiledPath)
+	r.routes[method] = append(r.routes[method], route{compiledPath, handler})
+	//r.routes[method] = append(r.routes[method], route{regexp.MustCompile(pattern), handler})
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if routes, ok := r.routes[req.Method]; ok {
 		for _, route := range routes {
 			if match := route.pattern.FindStringSubmatch(req.URL.Path); match != nil {
-				ctx := context.WithValue(req.Context(), paramsKey, match[1:])
+				params := make(map[string]string)
+				for i, name := range route.pattern.SubexpNames() {
+					if i > 0 && i <= len(match) {
+						params[name] = match[i]
+					}
+				}
+				ctx := context.WithValue(req.Context(), paramsKey, params)
 				req = req.WithContext(ctx)
 				route.handler(w, req)
 				return
 			}
 		}
 	}
-	r.ServeStatics(w, req)
+
+	if r.NotFoundHandler != nil {
+		r.NotFoundHandler(w, req)
+	} else {
+		http.NotFound(w, req)
+	}
 }
+
+//func (r *Router) NotFound(w http.ResponseWriter, req *http.Request) {
+//	http.ServeFile(w, req, "path/to/404.html")
+//}
 
 func (r *Router) ServeStatics(w http.ResponseWriter, req *http.Request) {
 	/*	file := strings.TrimPrefix(req.URL.Path, "/static/")
@@ -142,8 +169,8 @@ func (r *Router) Index(files ...string) {
 }
 
 func (r *Router) RegisterStaticRoute() {
-	r.RegisterRoute(http.MethodGet, "/static/", func(w http.ResponseWriter, req *http.Request) {
-		file := strings.TrimPrefix(req.URL.Path, "/static/")
+	r.RegisterRoute(http.MethodGet, "/static/*file", func(w http.ResponseWriter, req *http.Request) {
+		file := URLParam(req, "file")
 		fmt.Println("Serving static file:", file)
 		fmt.Println("static folder:", assets.StaticFilesDir)
 		if r.Debug {
@@ -159,4 +186,53 @@ func (r *Router) RegisterStaticRoute() {
 			fileServer.ServeHTTP(w, req)
 		}
 	})
+}
+
+func compilePath(path string) *regexp.Regexp {
+	fmt.Println("path recieved:", path)
+	var regex strings.Builder
+	regex.WriteString(`^`)
+	parts := strings.Split(path, "/")
+	for _, part := range parts {
+		if strings.HasPrefix(part, ":") {
+			regex.WriteString(`(?P<`)
+			regex.WriteString(part[1:])
+			regex.WriteString(`>[^/]+)`)
+		} else if strings.HasPrefix(part, "*") {
+			regex.WriteString(`(?P<`)
+			regex.WriteString(part[1:])
+			regex.WriteString(`>.+)`)
+		} else {
+			regex.WriteString(regexp.QuoteMeta(part))
+		}
+		regex.WriteString("/")
+	}
+	regexString := regex.String()[:regex.Len()-1]
+	regexString += `$`
+	return regexp.MustCompile(regexString)
+}
+
+func URLParam(r *http.Request, name string) string {
+	fmt.Println("name:", name)
+	ctx := r.Context()
+	params, ok := ctx.Value(paramsKey).(map[string]string)
+	if !ok {
+		fmt.Println("iisue")
+		return ""
+	}
+	value, ok := params[name]
+	if !ok {
+		fmt.Println("not ok")
+		return ""
+	}
+	fmt.Println("value:", value)
+	return value
+}
+
+func (r *Router) Forbidden(w http.ResponseWriter, req *http.Request) {
+	if r.ForbiddenHandler != nil {
+		r.ForbiddenHandler(w, req)
+	} else {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+	}
 }
