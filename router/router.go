@@ -9,14 +9,18 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"assets"
 )
 
-var R *Router
+var R Router
 
+// call R.Init(config.Debug) from an init function in the same module where the R variable is defined to be sure
+// that the R.Init(config.Debug) function is called before that init function.
 func init() {
-	R = New(config.Debug)
+	fmt.Println("Initiate the router")
+	R.Init(config.Debug) // Pass true or false to set the Debug field
 }
 
 type route struct {
@@ -33,11 +37,9 @@ type key int
 
 const paramsKey key = 0
 
-func New(debug bool) *Router {
-	return &Router{
-		Debug:  debug,
-		routes: make(map[string][]route),
-	}
+func (r *Router) Init(debug bool) {
+	r.Debug = debug
+	r.routes = make(map[string][]route)
 }
 
 func (r *Router) RegisterRoute(method, pattern string, handler http.HandlerFunc) {
@@ -136,5 +138,25 @@ func (r *Router) Index(files ...string) {
 		fmt.Println("Hi from root")
 		// http.ServeFile(w, req, "assets/static/layout.html")
 		r.ServeTemplate(w, nil, files...)
+	})
+}
+
+func (r *Router) RegisterStaticRoute() {
+	r.RegisterRoute(http.MethodGet, "/static/", func(w http.ResponseWriter, req *http.Request) {
+		file := strings.TrimPrefix(req.URL.Path, "/static/")
+		fmt.Println("Serving static file:", file)
+		fmt.Println("static folder:", assets.StaticFilesDir)
+		if r.Debug {
+			http.ServeFile(w, req, assets.StaticFilesDir+"/"+file)
+		} else {
+			fsys, err := fs.Sub(assets.Static, "static")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			fileServer := http.FileServer(http.FS(fsys))
+			req.URL.Path = file
+			fileServer.ServeHTTP(w, req)
+		}
 	})
 }

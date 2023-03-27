@@ -1,9 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Sign In</title>
-</head>
-<body>
+{{define "content"}}
     <h1>Sign In</h1>
     <form method="post" action="/signin">
         <label for="username">Username:</label>
@@ -14,5 +9,4 @@
         <br>
         <input type="submit" value="Sign In">
     </form>
-</body>
-</html>
+    {{end}}

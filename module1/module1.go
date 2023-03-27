@@ -12,6 +12,6 @@ func init() {
 	})
 
 	router.R.RegisterRoute(http.MethodPost, "/signin", func(w http.ResponseWriter, req *http.Request) {
-		router.R.ServeTemplate(w, nil, "welcome.html")
+		router.R.ServeTemplate(w, nil, "layout.html", "welcome.html")
 	})
 }
